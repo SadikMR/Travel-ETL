@@ -1,8 +1,4 @@
-from app import create_app
-from app.extensions import db
+from app.cronjobs.booking import run
 
-app = create_app()
-
-with app.app_context():
-    print("Database connected successfully!")
-    print(db.engine)
+if __name__ == "__main__":
+    run()
