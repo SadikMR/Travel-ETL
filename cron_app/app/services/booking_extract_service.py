@@ -1,7 +1,7 @@
 import requests
 
 
-class BookingService:
+class BookingExtractService:
     """Handles communication with the API."""
 
     def fetch(self, url: str, params: dict) -> list:

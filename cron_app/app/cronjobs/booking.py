@@ -1,36 +1,59 @@
 import requests
 
 from app.config import Config
-from app.services.booking_service import BookingService
+from app.services.booking_extract_service import (
+    BookingExtractService,
+)
 
+from app.services.booking_transform_service import (
+    BookingTransformService,
+)
 
 def get_api_url() -> str:
+    """Return bookings API endpoint."""
+
     return f"{Config.API_BASE_URL}/api/bookings"
 
 
 def get_query_params() -> dict:
+    """Return query parameters for the bookings API."""
+
     return {
         "updated_from": "2026-07-13",
         "updated_to": "2026-07-13",
     }
 
 
-def fetch_bookings():
-    service = BookingService()
-
-    api_url = get_api_url()
-    params = get_query_params()
-
-    return service.fetch(api_url, params)
-
-
 def run():
+    """Run the booking ETL pipeline."""
+
+    extract_service = BookingExtractService()
+    transform_service = BookingTransformService()
+
     try:
-        bookings = fetch_bookings()
+        bookings = extract_service.fetch(
+            url=get_api_url(),
+            params=get_query_params(),
+        )
 
-        print(f"Fetched {len(bookings)} bookings")
+        print(f"Fetched {len(bookings)} bookings.")
 
-        return bookings
+        transformed_bookings = transform_service.transform(
+            bookings
+        )
 
-    except requests.RequestException as e:
-        print(f"API request failed: {e}")
+        print(
+            f"Transformed {len(transformed_bookings)} bookings."
+        )
+
+        # Temporary: Verify transformed output
+        if transformed_bookings:
+            print("\nFirst transformed booking:")
+            print(transformed_bookings[0])
+
+        return transformed_bookings
+
+    except requests.RequestException as error:
+        print(f"API request failed: {error}")
+
+        return []
