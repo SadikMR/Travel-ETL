@@ -1,7 +1,7 @@
 from flask import Flask
 
 from .config import Config
-from .routes import booking_bp
+from .routes.booking import booking_bp
 
 
 def create_app():
