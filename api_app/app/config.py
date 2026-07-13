@@ -1,3 +1,2 @@
 class Config:
-    SQLALCHEMY_DATABASE_URI = "sqlite:///travel.db"
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    JSON_FILE = "app/data/bookings.json"
