@@ -4,10 +4,13 @@ from app.config import Config
 from app.services.booking_extract_service import (
     BookingExtractService,
 )
-
+from app.services.booking_load_service import (
+    BookingLoadService,
+)
 from app.services.booking_transform_service import (
     BookingTransformService,
 )
+
 
 def get_api_url() -> str:
     """Return bookings API endpoint."""
@@ -29,6 +32,7 @@ def run():
 
     extract_service = BookingExtractService()
     transform_service = BookingTransformService()
+    load_service = BookingLoadService()
 
     try:
         bookings = extract_service.fetch(
@@ -46,14 +50,13 @@ def run():
             f"Transformed {len(transformed_bookings)} bookings."
         )
 
-        # Temporary: Verify transformed output
-        if transformed_bookings:
-            print("\nFirst transformed booking:")
-            print(transformed_bookings[0])
+        inserted_count = load_service.load(
+            transformed_bookings
+        )
 
-        return transformed_bookings
+        print(
+            f"Inserted {inserted_count} new bookings."
+        )
 
     except requests.RequestException as error:
         print(f"API request failed: {error}")
-
-        return []
