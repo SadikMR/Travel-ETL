@@ -36,6 +36,19 @@ class BookingCron:
     def run(self) -> None:
         try:
             bookings = self.fetch_bookings()
+
+            if bookings is None:
+                print("No booking data received from API: response was empty or null.")
+                return
+
+            if not isinstance(bookings, list):
+                print("No booking data received from API: response was not a list.")
+                return
+
+            if not bookings:
+                print("No booking data received from API: response was empty.")
+                return
+
             print(f"Fetched {len(bookings)} bookings.")
 
             transformed = self.transform_bookings(bookings)
