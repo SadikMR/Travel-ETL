@@ -10,6 +10,7 @@ from app.services.booking_load_service import (
 from app.services.booking_transform_service import (
     BookingTransformService,
 )
+from app.services.exchange_rate_service import ExchangeRateService
 
 
 def get_api_url() -> str:
@@ -31,7 +32,9 @@ def run():
     """Run the booking ETL pipeline."""
 
     extract_service = BookingExtractService()
-    transform_service = BookingTransformService()
+    transform_service = BookingTransformService(
+        exchange_rate_service=ExchangeRateService()
+    )
     load_service = BookingLoadService()
 
     try:

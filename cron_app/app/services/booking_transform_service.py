@@ -4,13 +4,15 @@ from pathlib import Path
 
 import pandas as pd
 
+from app.services.exchange_rate_service import ExchangeRateService
+
 
 class BookingTransformService:
     """Transforms raw booking data into database-ready records."""
 
     PROPERTY_PREFIX = "BC"
 
-    def __init__(self) -> None:
+    def __init__(self, exchange_rate_service: ExchangeRateService | None = None) -> None:
         self._status_mapping = self._load_mapping(
             "booking_status.json"
         )
@@ -18,11 +20,11 @@ class BookingTransformService:
         self._device_mapping = self._load_mapping(
             "device_mapping.json"
         )
+        self._exchange_rate_service = (
+            exchange_rate_service or ExchangeRateService()
+        )
 
-    def transform(
-        self,
-        bookings: list[dict],
-    ) -> list[dict]:
+    def transform( self, bookings: list[dict]) -> list[dict]:
         """Transform raw booking JSON into database-ready records."""
 
         dataframe = self._normalize(bookings)
@@ -35,18 +37,12 @@ class BookingTransformService:
             for record in records
         ]
 
-    def _normalize(
-        self,
-        bookings: list[dict],
-    ) -> pd.DataFrame:
+    def _normalize(self,bookings: list[dict]) -> pd.DataFrame:
         """Flatten nested booking JSON."""
 
         return pd.json_normalize(bookings)
 
-    def _prepare_dataframe(
-        self,
-        dataframe: pd.DataFrame,
-    ) -> pd.DataFrame:
+    def _prepare_dataframe(self,dataframe: pd.DataFrame) -> pd.DataFrame:
         """Prepare dataframe using Pandas transformations."""
 
         dataframe = dataframe[
@@ -104,10 +100,7 @@ class BookingTransformService:
 
         return dataframe
 
-    def _transform_record(
-        self,
-        record: dict,
-    ) -> dict:
+    def _transform_record(self,record: dict,) -> dict:
         """Apply business rules to a single record."""
 
         conversion_key = record["conversion_key"]
@@ -134,12 +127,17 @@ class BookingTransformService:
             )
         )
 
+        currency = record.get("currency") or "USD"
+        revenue = record.get("revenue") or 0
+        record["revenue"] = self._exchange_rate_service.convert_to_usd(
+            revenue,
+            currency,
+        )
+        record["currency"] = "USD"
+
         return record
 
-    def _build_property_id(
-        self,
-        accommodation_id: str | int,
-    ) -> str:
+    def _build_property_id(self,accommodation_id: str | int) -> str:
         """Build property identifier."""
 
         return (
@@ -147,10 +145,7 @@ class BookingTransformService:
             f"{accommodation_id}"
         )
 
-    def _map_status(
-        self,
-        status: str,
-    ) -> str:
+    def _map_status(self, status: str) -> str:
         """Map booking status."""
 
         return self._status_mapping.get(
@@ -158,10 +153,7 @@ class BookingTransformService:
             status,
         )
 
-    def _extract_site_key(
-        self,
-        conversion_key: str,
-    ) -> str | None:
+    def _extract_site_key(self,conversion_key: str) -> str | None:
         """Extract site key."""
 
         match = re.search(
@@ -174,10 +166,7 @@ class BookingTransformService:
 
         return match.group(1).upper()
 
-    def _extract_device(
-        self,
-        conversion_key: str,
-    ) -> str | None:
+    def _extract_device(self,conversion_key: str) -> str | None:
         """Extract booking device."""
 
         match = re.search(
@@ -192,10 +181,7 @@ class BookingTransformService:
             match.group(1)
         )
 
-    def _extract_referral_property_id(
-        self,
-        conversion_key: str,
-    ) -> str | None:
+    def _extract_referral_property_id(self, conversion_key: str) -> str | None:
         """Extract referral property id."""
 
         match = re.search(
@@ -209,9 +195,7 @@ class BookingTransformService:
         return match.group(1)
 
     @staticmethod
-    def _load_mapping(
-        filename: str,
-    ) -> dict:
+    def _load_mapping(filename: str) -> dict:
         """Load JSON mapping file."""
 
         mapping_path = (
