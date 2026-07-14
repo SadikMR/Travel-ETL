@@ -1,16 +1,32 @@
 from flask import Flask
+
 from config import Config
-from routes.booking import booking_bp
 
 
-def create_app():
-    app = Flask(__name__)
+class ApiApp:
 
-    app.config.from_object(Config)
+    def __init__(self, config: type[Config] = Config) -> None:
+        self.config = config
 
-    app.register_blueprint(
-        booking_bp,
-        url_prefix="/api",
-    )
+    def create_app(self) -> Flask:
+        app = Flask(__name__)
+        self.configure_app(app)
+        self.register_blueprints(app)
+        return app
 
-    return app
+    def configure_app(self, app: Flask) -> None:
+        """Apply configuration to the Flask app."""
+
+        app.config.from_object(self.config)
+
+    def register_blueprints(self, app: Flask) -> None:
+        """Register all application blueprints."""
+
+        from routes.booking import booking_bp
+
+        app.register_blueprint(booking_bp, url_prefix="/api")
+
+
+def create_app() -> Flask:
+
+    return ApiApp().create_app()

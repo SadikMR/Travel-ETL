@@ -1,87 +1,77 @@
 import json
 from datetime import date, datetime
+from typing import Optional
 
 from flask import Blueprint, current_app, jsonify, request
+from flask.views import MethodView
 
 booking_bp = Blueprint("booking", __name__)
 
 
-@booking_bp.get("/bookings")
-def get_bookings():
-    updated_from = request.args.get("updated_from")
-    updated_to = request.args.get("updated_to")
+class BookingAPI(MethodView):
 
-    # Validate date format
-    try:
-        if updated_from:
-            updated_from = date.fromisoformat(updated_from)
+    def get(self):
+        updated_from_str = request.args.get("updated_from")
+        updated_to_str = request.args.get("updated_to")
 
-        if updated_to:
-            updated_to = date.fromisoformat(updated_to)
+        try:
+            updated_from, updated_to = self._parse_dates(
+                updated_from_str, updated_to_str
+            )
+        except ValueError:
+            return jsonify({"message": "Dates must be in YYYY-MM-DD format."}), 400
 
-    except ValueError:
-        return (
-            jsonify(
-                {
-                    "message": "Dates must be in YYYY-MM-DD format."
-                }
-            ),
-            400,
-        )
+        if updated_from and updated_to and updated_from > updated_to:
+            return (
+                jsonify({"message": "updated_from cannot be later than updated_to."}),
+                400,
+            )
 
-    # Validate date range
-    if updated_from and updated_to and updated_from > updated_to:
-        return (
-            jsonify(
-                {
-                    "message": "updated_from cannot be later than updated_to."
-                }
-            ),
-            400,
-        )
+        try:
+            bookings = self._load_bookings()
+        except FileNotFoundError:
+            return jsonify({"message": "Bookings data file not found."}), 404
+        except json.JSONDecodeError:
+            return jsonify({"message": "Bookings data file is not a valid JSON."}), 500
 
-    # Read JSON file
-    try:
-        with open(current_app.config["JSON_FILE"], "r", encoding="utf-8") as file:
-            bookings = json.load(file)
+        if not updated_from and not updated_to:
+            return jsonify(bookings)
 
-    except FileNotFoundError:
-        return (
-            jsonify(
-                {
-                    "message": "Bookings data file not found."
-                }
-            ),
-            404,
-        )
+        filtered = self._filter_bookings(bookings, updated_from, updated_to)
+        return jsonify(filtered)
 
-    except json.JSONDecodeError:
-        return (
-            jsonify(
-                {
-                    "message": "Bookings data file is not a valid JSON."
-                }
-            ),
-            500,
-        )
+    def _parse_dates(self, updated_from: Optional[str], updated_to: Optional[str]):
+        """Parse optional date strings into date objects or None."""
 
-    # No filters provided
-    if not updated_from and not updated_to:
-        return jsonify(bookings)
+        uf = date.fromisoformat(updated_from) if updated_from else None
+        ut = date.fromisoformat(updated_to) if updated_to else None
+        return uf, ut
 
-    filtered_bookings = []
+    def _load_bookings(self):
+        """Read bookings JSON from configured path."""
 
-    for booking in bookings:
-        booking_date = datetime.fromisoformat(
-            booking["updated"].replace("Z", "+00:00")
-        ).date()
+        with open(current_app.config["JSON_FILE"], "r", encoding="utf-8") as fh:
+            return json.load(fh)
 
-        if updated_from and booking_date < updated_from:
-            continue
+    def _filter_bookings(self, bookings: list[dict], updated_from: Optional[date], updated_to: Optional[date]) -> list[dict]:
+        """Return bookings within optional date range."""
 
-        if updated_to and booking_date > updated_to:
-            continue
+        out: list[dict] = []
+        for booking in bookings:
+            booking_date = datetime.fromisoformat(
+                booking["updated"].replace("Z", "+00:00")
+            ).date()
 
-        filtered_bookings.append(booking)
+            if updated_from and booking_date < updated_from:
+                continue
 
-    return jsonify(filtered_bookings)
+            if updated_to and booking_date > updated_to:
+                continue
+
+            out.append(booking)
+
+        return out
+
+
+booking_view = BookingAPI.as_view("booking_api")
+booking_bp.add_url_rule("/bookings", view_func=booking_view, methods=["GET"]) 
