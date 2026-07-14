@@ -9,7 +9,9 @@ from services.exchange_rate_service import ExchangeRateService
 
 class BookingCron:
 
-    def __init__(self) -> None:
+    def __init__(self, updated_from: str | None = None, updated_to: str | None = None) -> None:
+        self.updated_from = updated_from
+        self.updated_to = updated_to
         self.extract_service = BookingExtractService()
         self.transform_service = BookingTransformService(
             exchange_rate_service=ExchangeRateService()
@@ -18,8 +20,8 @@ class BookingCron:
 
     def get_query_params(self) -> dict:
         return {
-            "updated_from": "2026-07-13",
-            "updated_to": "2026-07-13",
+            "updated_from": self.updated_from or "2026-07-13",
+            "updated_to": self.updated_to or "2026-07-13",
         }
 
     def fetch_bookings(self) -> list[dict]:
@@ -46,7 +48,10 @@ class BookingCron:
             print(f"API request failed: {error}")
 
 
-def run() -> None:
-    """Module-level compatibility function used by the runner."""
+def run(updated_from: str | None = None, updated_to: str | None = None) -> None:
+    """Module-level compatibility function used by the runner.
 
-    BookingCron().run()
+    Accepts optional date strings and forwards them to the cron class.
+    """
+
+    BookingCron(updated_from=updated_from, updated_to=updated_to).run()
