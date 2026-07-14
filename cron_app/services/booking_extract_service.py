@@ -5,14 +5,6 @@ from config import Config
 
 
 class BookingExtractService:
-    """Handles communication with the bookings API.
-
-    Responsibilities are small and focused:
-    - Build request URL from `Config.API_BASE_URL`
-    - Execute HTTP request
-    - Return parsed JSON payload
-    """
-
     DEFAULT_ENDPOINT = "/api/bookings"
 
     def __init__(self, base_url: Optional[str] = None, endpoint: Optional[str] = None) -> None:
