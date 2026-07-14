@@ -1,29 +1,16 @@
 import requests
 
-try:
-    from ..config import Config
-    from ..services.booking_extract_service import (
-        BookingExtractService,
-    )
-    from ..services.booking_load_service import (
-        BookingLoadService,
-    )
-    from ..services.booking_transform_service import (
-        BookingTransformService,
-    )
-    from ..services.exchange_rate_service import ExchangeRateService
-except ImportError:
-    from config import Config
-    from services.booking_extract_service import (
-        BookingExtractService,
-    )
-    from services.booking_load_service import (
-        BookingLoadService,
-    )
-    from services.booking_transform_service import (
-        BookingTransformService,
-    )
-    from services.exchange_rate_service import ExchangeRateService
+from config import Config
+from services.booking_extract_service import (
+    BookingExtractService,
+)
+from services.booking_load_service import (
+    BookingLoadService,
+)
+from services.booking_transform_service import (
+    BookingTransformService,
+)
+from services.exchange_rate_service import ExchangeRateService
 
 
 def get_api_url() -> str:

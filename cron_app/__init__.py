@@ -1,11 +1,6 @@
 from flask import Flask
-
-try:
-    from .config import Config
-    from .extensions import db
-except ImportError:
-    from config import Config
-    from extensions import db
+from config import Config
+from extensions import db
 
 
 def create_app():

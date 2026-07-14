@@ -1,9 +1,5 @@
-try:
-    from ..extensions import db
-    from ..models.booking_transaction import BookingTransaction
-except ImportError:
-    from extensions import db
-    from models.booking_transaction import BookingTransaction
+from extensions import db
+from models.booking_transaction import BookingTransaction
 
 
 class BookingLoadService:

@@ -1,11 +1,6 @@
 from flask import Flask
-
-try:
-    from .config import Config
-    from .routes.booking import booking_bp
-except ImportError:
-    from config import Config
-    from routes.booking import booking_bp
+from config import Config
+from routes.booking import booking_bp
 
 
 def create_app():
