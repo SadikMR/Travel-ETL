@@ -11,7 +11,6 @@ class BookingLoadService(DBService):
         super().__init__(db_instance=db_instance)
 
     def load(self, bookings: list[dict]) -> int:
-        # Perform an upsert (insert or update) using PostgreSQL ON CONFLICT
         table = BookingTransaction.__table__
 
         # Prepare rows to insert (only include known table columns, exclude PK and timestamps)
@@ -24,29 +23,35 @@ class BookingLoadService(DBService):
         if not rows:
             return 0
 
-        insert_stmt = pg_insert(table).values(rows)
-        excluded = insert_stmt.excluded
-        update_cols = {c: getattr(excluded, c) for c in cols if c != "transaction_id"}
-        upsert = insert_stmt.on_conflict_do_update(index_elements=["transaction_id"], set_=update_cols)
-
         inserted = 0
-        try:
-            with self.db.engine.begin() as conn:
-                result = conn.execute(upsert)
-                try:
-                    inserted = result.rowcount or 0
-                except Exception:
-                    inserted = len(rows)
-        except SQLAlchemyError:
-            # Fallback: insert/update one by one with session merge
-            for row in rows:
-                try:
-                    obj = BookingTransaction(**row)
-                    self.db.session.merge(obj)
-                    self.db.session.commit()
-                    inserted += 1
-                except SQLAlchemyError:
-                    self.db.session.rollback()
+        chunk_size = 100
+
+        for start in range(0, len(rows), chunk_size):
+            chunk_rows = rows[start:start + chunk_size]
+
+            insert_stmt = pg_insert(table).values(chunk_rows)
+            excluded = insert_stmt.excluded
+            update_cols = {c: getattr(excluded, c) for c in cols if c != "transaction_id"}
+            upsert = insert_stmt.on_conflict_do_update(index_elements=["transaction_id"], set_=update_cols)
+
+            try:
+                with self.db.engine.begin() as conn:
+                    result = conn.execute(upsert)
+                    try:
+                        inserted += result.rowcount or len(chunk_rows)
+                    except Exception:
+                        inserted += len(chunk_rows)
+            except SQLAlchemyError:
+                # Fallback: insert/update one by one for this chunk with session merge
+                for row in chunk_rows:
+                    try:
+                        obj = BookingTransaction(**row)
+                        self.db.session.merge(obj)
+                        self.db.session.commit()
+                        inserted += 1
+                    except SQLAlchemyError:
+                        self.db.session.rollback()
+
         return inserted
 
     def _get_existing_transaction_ids(self, transaction_ids: list[str]) -> set:
