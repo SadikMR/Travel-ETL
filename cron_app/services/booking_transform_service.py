@@ -1,6 +1,7 @@
 import json
 import re
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 
@@ -8,205 +9,91 @@ from services.exchange_rate_service import ExchangeRateService
 
 
 class BookingTransformService:
-    """Transforms raw booking data into database-ready records."""
-
     PROPERTY_PREFIX = "BC"
+    SOURCE_COLUMNS = [
+        "accommodations.reservation",
+        "label",
+        "accommodation_details.accommodation",
+        "status",
+        "booker.travel_purpose",
+        "booker.address.country",
+        "currencies.booker",
+        "start",
+        "end",
+        "commission.estimate_commission_amount.booker_currency",
+    ]
 
-    def __init__(self, exchange_rate_service: ExchangeRateService | None = None) -> None:
-        self._status_mapping = self._load_mapping(
-            "booking_status.json"
-        )
+    RENAME_MAP = {
+        "accommodations.reservation": "transaction_id",
+        "label": "conversion_key",
+        "accommodation_details.accommodation": "property_id",
+        "booker.travel_purpose": "travel_purpose",
+        "booker.address.country": "country_code",
+        "currencies.booker": "currency",
+        "start": "check_in_date",
+        "end": "check_out_date",
+        "commission.estimate_commission_amount.booker_currency": "revenue",
+    }
 
-        self._device_mapping = self._load_mapping(
-            "device_mapping.json"
-        )
-        self._exchange_rate_service = (
-            exchange_rate_service or ExchangeRateService()
-        )
+    _SITE_RE = re.compile(r"k-([^_]+)")
+    _DEVICE_RE = re.compile(r"d-([^_]+)")
+    _REFERRAL_RE = re.compile(r"p-([^_]+)")
 
-    def transform( self, bookings: list[dict]) -> list[dict]:
-        """Transform raw booking JSON into database-ready records."""
+    def __init__(self, exchange_rate_service: Optional[ExchangeRateService] = None) -> None:
+        self._status_mapping = self._load_mapping("booking_status.json")
+        self._device_mapping = self._load_mapping("device_mapping.json")
+        self._exchange_rate_service = exchange_rate_service or ExchangeRateService()
 
-        dataframe = self._normalize(bookings)
-        dataframe = self._prepare_dataframe(dataframe)
+    def transform(self, bookings: list[dict]) -> list[dict]:
+        df = self._normalize(bookings)
+        df = self._prepare_dataframe(df)
+        return [self._transform_record(r) for r in df.to_dict(orient="records")]
 
-        records = dataframe.to_dict(orient="records")
-
-        return [
-            self._transform_record(record)
-            for record in records
-        ]
-
-    def _normalize(self,bookings: list[dict]) -> pd.DataFrame:
-        """Flatten nested booking JSON."""
-
+    def _normalize(self, bookings: list[dict]) -> pd.DataFrame:
         return pd.json_normalize(bookings)
 
-    def _prepare_dataframe(self,dataframe: pd.DataFrame) -> pd.DataFrame:
-        """Prepare dataframe using Pandas transformations."""
+    def _prepare_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = df[self.SOURCE_COLUMNS].copy()
+        df.rename(columns=self.RENAME_MAP, inplace=True)
+        self._convert_date_columns(df, ["check_in_date", "check_out_date"])
+        df["country_code"] = df["country_code"].fillna("").str.upper()
+        df["revenue"] = df["revenue"].fillna(0)
+        return df
 
-        dataframe = dataframe[
-            [
-                "accommodations.reservation",
-                "label",
-                "accommodation_details.accommodation",
-                "status",
-                "booker.travel_purpose",
-                "booker.address.country",
-                "currencies.booker",
-                "start",
-                "end",
-                "commission.estimate_commission_amount.booker_currency",
-            ]
-        ].copy()
+    @staticmethod
+    def _convert_date_columns(df: pd.DataFrame, cols: list[str]) -> None:
+        for c in cols:
+            df[c] = pd.to_datetime(df[c]).dt.date
 
-        dataframe.rename(
-            columns={
-                "accommodations.reservation": "transaction_id",
-                "label": "conversion_key",
-                "accommodation_details.accommodation": "property_id",
-                "booker.travel_purpose": "travel_purpose",
-                "booker.address.country": "country_code",
-                "currencies.booker": "currency",
-                "start": "check_in_date",
-                "end": "check_out_date",
-                "commission.estimate_commission_amount.booker_currency": "revenue",
-            },
-            inplace=True,
-        )
+    def _transform_record(self, record: dict) -> dict:
+        record["property_id"] = f"{self.PROPERTY_PREFIX}-{record["property_id"]}"
+        record["status"] = self._status_mapping.get(record.get("status"), record.get("status"))
 
-        dataframe["check_in_date"] = (
-            pd.to_datetime(
-                dataframe["check_in_date"]
-            ).dt.date
-        )
-
-        dataframe["check_out_date"] = (
-            pd.to_datetime(
-                dataframe["check_out_date"]
-            ).dt.date
-        )
-
-        dataframe["country_code"] = (
-            dataframe["country_code"]
-            .fillna("")
-            .str.upper()
-        )
-
-        dataframe["revenue"] = (
-            dataframe["revenue"]
-            .fillna(0)
-        )
-
-        return dataframe
-
-    def _transform_record(self,record: dict,) -> dict:
-        """Apply business rules to a single record."""
-
-        conversion_key = record["conversion_key"]
-
-        record["property_id"] = self._build_property_id(
-            record["property_id"]
-        )
-
-        record["status"] = self._map_status(
-            record["status"]
-        )
-
-        record["site_key"] = self._extract_site_key(
-            conversion_key
-        )
-
-        record["device"] = self._extract_device(
-            conversion_key
-        )
-
-        record["referral_property_id"] = (
-            self._extract_referral_property_id(
-                conversion_key
-            )
-        )
+        conversion_key = record.get("conversion_key") or ""
+        record["site_key"] = self._extract_site_key(conversion_key)
+        record["device"] = self._extract_device(conversion_key)
+        record["referral_property_id"] = self._extract_referral_property_id(conversion_key)
 
         currency = record.get("currency") or "USD"
         revenue = record.get("revenue") or 0
-        record["revenue"] = self._exchange_rate_service.convert_to_usd(
-            revenue,
-            currency,
-        )
+        record["revenue"] = self._exchange_rate_service.convert_to_usd(revenue, currency)
         record["currency"] = "USD"
-
         return record
 
-    def _build_property_id(self,accommodation_id: str | int) -> str:
-        """Build property identifier."""
+    def _extract_site_key(self, conversion_key: str) -> Optional[str]:
+        m = self._SITE_RE.search(conversion_key)
+        return m.group(1).upper() if m else None
 
-        return (
-            f"{self.PROPERTY_PREFIX}-"
-            f"{accommodation_id}"
-        )
+    def _extract_device(self, conversion_key: str) -> Optional[str]:
+        m = self._DEVICE_RE.search(conversion_key)
+        return self._device_mapping.get(m.group(1)) if m else None
 
-    def _map_status(self, status: str) -> str:
-        """Map booking status."""
-
-        return self._status_mapping.get(
-            status,
-            status,
-        )
-
-    def _extract_site_key(self,conversion_key: str) -> str | None:
-        """Extract site key."""
-
-        match = re.search(
-            r"k-([^_]+)",
-            conversion_key,
-        )
-
-        if match is None:
-            return None
-
-        return match.group(1).upper()
-
-    def _extract_device(self,conversion_key: str) -> str | None:
-        """Extract booking device."""
-
-        match = re.search(
-            r"d-([^_]+)",
-            conversion_key,
-        )
-
-        if match is None:
-            return None
-
-        return self._device_mapping.get(
-            match.group(1)
-        )
-
-    def _extract_referral_property_id(self, conversion_key: str) -> str | None:
-        """Extract referral property id."""
-
-        match = re.search(
-            r"p-([^_]+)",
-            conversion_key,
-        )
-
-        if match is None:
-            return None
-
-        return match.group(1)
+    def _extract_referral_property_id(self, conversion_key: str) -> Optional[str]:
+        m = self._REFERRAL_RE.search(conversion_key)
+        return m.group(1) if m else None
 
     @staticmethod
     def _load_mapping(filename: str) -> dict:
-        """Load JSON mapping file."""
-
-        mapping_path = (
-            Path(__file__).parent.parent
-            / "mappings"
-            / filename
-        )
-
-        with open(
-            mapping_path,
-            "r",
-            encoding="utf-8",
-        ) as file:
-            return json.load(file)
+        mapping_path = Path(__file__).resolve().parents[1] / "mappings" / filename
+        with open(mapping_path, "r", encoding="utf-8") as fh:
+            return json.load(fh)

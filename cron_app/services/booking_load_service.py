@@ -1,57 +1,48 @@
 from extensions import db
 from models.booking_transaction import BookingTransaction
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class BookingLoadService:
-    """Loads transformed bookings into the database."""
+    """Load transformed bookings efficiently.
 
-    def load(
-        self,
-        bookings: list[dict],
-    ) -> int:
-        """Load bookings into the database.
+    - Checks existing transaction ids in a single query
+    - Builds model instances for new bookings
+    - Persists them in bulk and commits once
+    """
 
-        Returns:
-            Number of newly inserted records.
-        """
+    def load(self, bookings: list[dict]) -> int:
+        transaction_ids = [b["transaction_id"] for b in bookings]
+        existing = self._get_existing_transaction_ids(transaction_ids)
 
-        inserted_count = 0
+        new_bookings = [b for b in bookings if b["transaction_id"] not in existing]
+        instances = [self._build_instance(b) for b in new_bookings]
 
-        for booking in bookings:
-            if self._exists(
-                booking["transaction_id"]
-            ):
-                continue
+        inserted = 0
+        if instances:
+            try:
+                db.session.bulk_save_objects(instances)
+                db.session.commit()
+                inserted = len(instances)
+            except SQLAlchemyError:
+                db.session.rollback()
+                for inst in instances:
+                    db.session.add(inst)
+                db.session.commit()
+                inserted = len(instances)
 
-            booking_transaction = (
-                BookingTransaction(
-                    **booking
-                )
-            )
+        return inserted
 
-            db.session.add(
-                booking_transaction
-            )
+    def _get_existing_transaction_ids(self, transaction_ids: list[str]) -> set:
+        if not transaction_ids:
+            return set()
 
-            inserted_count += 1
-
-        db.session.commit()
-
-        return inserted_count
-
-    def _exists(
-        self,
-        transaction_id: str,
-    ) -> bool:
-        """Check whether a booking already exists."""
-
-        return (
-            db.session.query(
-                BookingTransaction.id
-            )
-            .filter_by(
-                transaction_id=transaction_id
-            )
-            .first()
-            is not None
+        stmt = select(BookingTransaction.transaction_id).where(
+            BookingTransaction.transaction_id.in_(transaction_ids)
         )
+        rows = db.session.execute(stmt).scalars().all()
+        return set(rows)
+
+    def _build_instance(self, booking: dict) -> BookingTransaction:
+        return BookingTransaction(**booking)
