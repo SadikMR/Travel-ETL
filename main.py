@@ -81,24 +81,15 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
 def main(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv or sys.argv[1:])
 
-    # Create the cron_app Flask app and run cron jobs inside its app context
     try:
         cron_pkg = importlib.import_module("cron_app")
-        app = cron_pkg.create_app()
+        cron_pkg.create_app()
     except Exception:
-        app = None
+        pass
 
-    if app is None:
-        # No Flask app available; run crons without app context
-        for name in args.cron_names:
-            print(f"Running cron: {name} (from={args.updated_from} to={args.updated_to})")
-            run_cron_by_name(name, args.updated_from, args.updated_to)
-        return
-
-    with app.app_context():
-        for name in args.cron_names:
-            print(f"Running cron: {name} (from={args.updated_from} to={args.updated_to})")
-            run_cron_by_name(name, args.updated_from, args.updated_to)
+    for name in args.cron_names:
+        print(f"Running cron: {name} (from={args.updated_from} to={args.updated_to})")
+        run_cron_by_name(name, args.updated_from, args.updated_to)
 
 
 if __name__ == "__main__":

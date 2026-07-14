@@ -1,18 +1,22 @@
-from flask import Flask
+import sys
+from pathlib import Path
+
+CRON_APP_ROOT = Path(__file__).resolve().parent
+if str(CRON_APP_ROOT) not in sys.path:
+    sys.path.insert(0, str(CRON_APP_ROOT))
+
 from config import Config
 from extensions import db
 
 
 def create_app():
-    app = Flask(__name__)
+    db.initialize(uri=Config.SQLALCHEMY_DATABASE_URI)
+    db.create_all()
+    return db
 
-    app.config.from_object(Config)
 
-    db.init_app(app)
+def run_cron():
+    from cronjobs.booking import run
 
-    with app.app_context():
-        from models import BookingTransaction
-
-        db.create_all()
-
-    return app
+    create_app()
+    run()

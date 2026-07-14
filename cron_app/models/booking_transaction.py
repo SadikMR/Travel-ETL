@@ -1,53 +1,56 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from extensions import db
+from sqlalchemy import Column, Date, DateTime, Integer, Numeric, String
+from sqlalchemy.orm import declarative_base
+
+from extensions import Base
 
 
-class BookingTransaction(db.Model):
+class BookingTransaction(Base):
     __tablename__ = "booking_transactions"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
-    transaction_id = db.Column(
-        db.String(50),
+    transaction_id = Column(
+        String(50),
         unique=True,
         nullable=False,
     )
 
-    conversion_key = db.Column(db.String(255), nullable=False)
+    conversion_key = Column(String(255), nullable=False)
 
-    property_id = db.Column(db.String(100), nullable=False)
+    property_id = Column(String(100), nullable=False)
 
-    status = db.Column(db.String(50))
+    status = Column(String(50))
 
-    travel_purpose = db.Column(db.String(50))
+    travel_purpose = Column(String(50))
 
-    country_code = db.Column(db.String(10))
+    country_code = Column(String(10))
 
-    currency = db.Column(db.String(10))
+    currency = Column(String(10))
 
-    check_in_date = db.Column(db.Date)
+    check_in_date = Column(Date)
 
-    check_out_date = db.Column(db.Date)
+    check_out_date = Column(Date)
 
-    site_key = db.Column(db.String(20))
+    site_key = Column(String(20))
 
-    device = db.Column(db.String(20))
+    device = Column(String(20))
 
-    referral_property_id = db.Column(db.String(100))
+    referral_property_id = Column(String(100))
 
-    revenue = db.Column(db.Numeric(10, 2), default=Decimal("0.00"))
+    revenue = Column(Numeric(10, 2), default=Decimal("0.00"))
 
-    revenue_usd = db.Column(db.Numeric(10, 2), default=Decimal("0.00"))
+    revenue_usd = Column(Numeric(10, 2), default=Decimal("0.00"))
 
-    created_at = db.Column(
-        db.DateTime(timezone=True),
+    created_at = Column(
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
     )
 
-    updated_at = db.Column(
-        db.DateTime(timezone=True),
+    updated_at = Column(
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
