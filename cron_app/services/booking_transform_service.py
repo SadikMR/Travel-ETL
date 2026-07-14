@@ -4,7 +4,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from app.services.exchange_rate_service import ExchangeRateService
+try:
+    from .exchange_rate_service import ExchangeRateService
+except ImportError:
+    from services.exchange_rate_service import ExchangeRateService
 
 
 class BookingTransformService:

@@ -13,4 +13,9 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    API_BASE_URL = os.getenv("API_BASE_URL")
+    # Load API base URL from environment, fallback to local API used by dev
+    _api_base = os.getenv("API_BASE_URL")
+    if _api_base is None or str(_api_base).lower() == "none":
+        _api_base = "http://127.0.0.1:5000"
+
+    API_BASE_URL = _api_base

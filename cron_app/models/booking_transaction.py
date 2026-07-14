@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
 
-from app.extensions import db
+try:
+    from ..extensions import db
+except ImportError:
+    from extensions import db
 
 
 class BookingTransaction(db.Model):
