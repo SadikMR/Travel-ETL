@@ -5,12 +5,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 
 class BookingLoadService:
-    """Load transformed bookings efficiently.
-
-    - Checks existing transaction ids in a single query
-    - Builds model instances for new bookings
-    - Persists them in bulk and commits once
-    """
 
     def load(self, bookings: list[dict]) -> int:
         transaction_ids = [b["transaction_id"] for b in bookings]
