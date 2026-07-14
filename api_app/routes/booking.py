@@ -5,6 +5,8 @@ from typing import Optional
 from flask import Blueprint, current_app, jsonify, request
 from flask.views import MethodView
 
+from ..extensions import limiter
+
 booking_bp = Blueprint("booking", __name__)
 
 
@@ -74,4 +76,5 @@ class BookingAPI(MethodView):
 
 
 booking_view = BookingAPI.as_view("booking_api")
-booking_bp.add_url_rule("/bookings", view_func=booking_view, methods=["GET"]) 
+booking_view = limiter.limit("10/minute")(booking_view)
+booking_bp.add_url_rule("/bookings", view_func=booking_view, methods=["GET"])
