@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from extensions import db
 
@@ -36,7 +37,9 @@ class BookingTransaction(db.Model):
 
     referral_property_id = db.Column(db.String(100))
 
-    revenue = db.Column(db.Float, default=0)
+    revenue = db.Column(db.Numeric(10, 2), default=Decimal("0.00"))
+
+    revenue_usd = db.Column(db.Numeric(10, 2), default=Decimal("0.00"))
 
     created_at = db.Column(
         db.DateTime(timezone=True),

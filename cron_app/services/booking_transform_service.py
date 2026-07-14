@@ -1,5 +1,6 @@
 import json
 import re
+from decimal import Decimal
 from pathlib import Path
 from typing import Optional
 
@@ -57,7 +58,7 @@ class BookingTransformService:
         df.rename(columns=self.RENAME_MAP, inplace=True)
         self._convert_date_columns(df, ["check_in_date", "check_out_date"])
         df["country_code"] = df["country_code"].fillna("").str.upper()
-        df["revenue"] = df["revenue"].fillna(0)
+        df["revenue"] = pd.to_numeric(df["revenue"], errors="coerce").fillna(0)
         return df
 
     @staticmethod
@@ -70,13 +71,16 @@ class BookingTransformService:
         record["status"] = self._status_mapping.get(record.get("status"), record.get("status"))
 
         conversion_key = record.get("conversion_key") or ""
-        record["site_key"] = self._extract_site_key(conversion_key)
-        record["device"] = self._extract_device(conversion_key)
-        record["referral_property_id"] = self._extract_referral_property_id(conversion_key)
+        record["site_key"] = self._extract_site_key(conversion_key = conversion_key)
+        record["device"] = self._extract_device(conversion_key = conversion_key)
+        record["referral_property_id"] = self._extract_referral_property_id(conversion_key = conversion_key)
 
         currency = record.get("currency") or "USD"
         revenue = record.get("revenue") or 0
-        record["revenue"] = self._exchange_rate_service.convert_to_usd(revenue, currency)
+        record["revenue"] = self._to_decimal(revenue)
+        record["revenue_usd"] = self._to_decimal(
+            self._exchange_rate_service.convert_to_usd(revenue, currency)
+        )
         record["currency"] = "USD"
         return record
 
@@ -91,6 +95,10 @@ class BookingTransformService:
     def _extract_referral_property_id(self, conversion_key: str) -> Optional[str]:
         m = self._REFERRAL_RE.search(conversion_key)
         return m.group(1) if m else None
+
+    @staticmethod
+    def _to_decimal(value: object) -> Decimal:
+        return Decimal(str(value or 0)).quantize(Decimal("0.01"))
 
     @staticmethod
     def _load_mapping(filename: str) -> dict:

@@ -49,9 +49,5 @@ class BookingCron:
 
 
 def run(updated_from: str | None = None, updated_to: str | None = None) -> None:
-    """Module-level compatibility function used by the runner.
-
-    Accepts optional date strings and forwards them to the cron class.
-    """
 
     BookingCron(updated_from=updated_from, updated_to=updated_to).run()
