@@ -1,10 +1,13 @@
-from extensions import db
+from extensions import DBService
 from models.booking_transaction import BookingTransaction
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 
-class BookingLoadService:
+class BookingLoadService(DBService):
+
+    def __init__(self, db_instance=None):
+        super().__init__(db_instance=db_instance)
 
     def load(self, bookings: list[dict]) -> int:
         transaction_ids = [b["transaction_id"] for b in bookings]
@@ -16,14 +19,14 @@ class BookingLoadService:
         inserted = 0
         if instances:
             try:
-                db.session.bulk_save_objects(instances)
-                db.session.commit()
+                self.db.session.bulk_save_objects(instances)
+                self.db.session.commit()
                 inserted = len(instances)
             except SQLAlchemyError:
-                db.session.rollback()
+                self.db.session.rollback()
                 for inst in instances:
-                    db.session.add(inst)
-                db.session.commit()
+                    self.db.session.add(inst)
+                self.db.session.commit()
                 inserted = len(instances)
 
         return inserted
@@ -35,7 +38,7 @@ class BookingLoadService:
         stmt = select(BookingTransaction.transaction_id).where(
             BookingTransaction.transaction_id.in_(transaction_ids)
         )
-        rows = db.session.execute(stmt).scalars().all()
+        rows = self.db.session.execute(stmt).scalars().all()
         return set(rows)
 
     def _build_instance(self, booking: dict) -> BookingTransaction:
