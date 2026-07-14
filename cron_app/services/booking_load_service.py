@@ -28,31 +28,36 @@ class BookingLoadService(DBService):
 
         for start in range(0, len(rows), chunk_size):
             chunk_rows = rows[start:start + chunk_size]
-
-            insert_stmt = pg_insert(table).values(chunk_rows)
-            excluded = insert_stmt.excluded
-            update_cols = {c: getattr(excluded, c) for c in cols if c != "transaction_id"}
-            upsert = insert_stmt.on_conflict_do_update(index_elements=["transaction_id"], set_=update_cols)
-
-            try:
-                with self.db.engine.begin() as conn:
-                    result = conn.execute(upsert)
-                    try:
-                        inserted += result.rowcount or len(chunk_rows)
-                    except Exception:
-                        inserted += len(chunk_rows)
-            except SQLAlchemyError:
-                # Fallback: insert/update one by one for this chunk with session merge
-                for row in chunk_rows:
-                    try:
-                        obj = BookingTransaction(**row)
-                        self.db.session.merge(obj)
-                        self.db.session.commit()
-                        inserted += 1
-                    except SQLAlchemyError:
-                        self.db.session.rollback()
+            inserted += self._persist_chunk(chunk_rows=chunk_rows, table=table, cols=cols)
 
         return inserted
+
+    def _persist_chunk(self, chunk_rows: list[dict], table, cols) -> int:
+        insert_stmt = pg_insert(table).values(chunk_rows)
+        excluded = insert_stmt.excluded
+        update_cols = {c: getattr(excluded, c) for c in cols if c != "transaction_id"}
+        upsert = insert_stmt.on_conflict_do_update(index_elements=["transaction_id"], set_=update_cols)
+
+        try:
+            with self.db.engine.begin() as conn:
+                result = conn.execute(upsert)
+                try:
+                    return result.rowcount or len(chunk_rows)
+                except Exception:
+                    return len(chunk_rows)
+        except SQLAlchemyError:
+            persisted = 0
+            for row in chunk_rows:
+                try:
+                    self._merge_booking_row(row)
+                    persisted += 1
+                except SQLAlchemyError:
+                    continue
+            return persisted
+
+    def _merge_booking_row(self, row: dict) -> None:
+        with self.db.session.begin():
+            self.db.session.merge(BookingTransaction(**row))
 
     def _get_existing_transaction_ids(self, transaction_ids: list[str]) -> set:
         if not transaction_ids:
