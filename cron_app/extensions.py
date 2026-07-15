@@ -1,6 +1,8 @@
+from contextlib import contextmanager
 from typing import Optional
 
 from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
@@ -14,22 +16,35 @@ class Database:
         self.uri = uri
         self.engine = None
         self.session_factory = None
-        self.session = None
 
     def initialize(self, uri: Optional[str] = None):
         resolved_uri = uri or self.uri
+
         if not resolved_uri:
             from config import Config
-
             resolved_uri = Config.SQLALCHEMY_DATABASE_URI
 
         if self.engine is None or self.uri != resolved_uri:
             self.uri = resolved_uri
             self.engine = create_engine(resolved_uri)
             self.session_factory = sessionmaker(bind=self.engine)
-            self.session = self.session_factory()
 
         return self
+
+    @contextmanager
+    def session_scope(self):
+        self.initialize()
+
+        session = self.session_factory()
+
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     def create_all(self) -> None:
         self.initialize()
@@ -41,14 +56,13 @@ class Database:
 
     def get_inspector(self):
         from sqlalchemy import inspect
-
         return inspect(self.engine)
 
 
 class DBService:
-    """Base class for services that need DB access. Provides `self.db`."""
+    """Base class for services that need DB access."""
 
-    def __init__(self, db_instance: Optional[Database] = None) -> None:
+    def __init__(self, db_instance: Optional[Database] = None):
         self.db = db_instance or db
         self.db.initialize()
 
