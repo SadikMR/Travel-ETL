@@ -19,9 +19,12 @@ class BookingCron:
         self.load_service = BookingLoadService()
 
     def get_query_params(self) -> dict:
+        if not self.updated_from or not self.updated_to:
+            raise ValueError("Both 'updated_from' and 'updated_to' must be provided.") 
+        
         return {
-            "updated_from": self.updated_from or "2026-07-13",
-            "updated_to": self.updated_to or "2026-07-13",
+            "updated_from": self.updated_from,
+            "updated_to": self.updated_to,
         }
 
     def fetch_bookings(self) -> list[dict]:
