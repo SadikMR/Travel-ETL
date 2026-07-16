@@ -1,9 +1,11 @@
 import pytest
 
+from decimal import Decimal
 from unittest.mock import Mock
 
 from cronjobs.booking import BookingCron
 from services.booking_extract_service import BookingExtractService
+from services.booking_transform_service import BookingTransformService
 from services.exchange_rate_service import ExchangeRateService
 
 from tests.test_data.common_data import (
@@ -23,6 +25,19 @@ from tests.test_data.exchange_rate_data import (
     SUCCESS_RESPONSE as EXCHANGE_RATE_SUCCESS_RESPONSE,
 )
 
+from tests.test_data.booking_transform_data import (
+    BOOKINGS as RAW_BOOKINGS,
+    CONVERSION_KEY,
+    DECIMAL_VALUE,
+    DEVICE,
+    PREPARED_RECORD,
+    REFERRAL_PROPERTY_ID,
+    SITE_KEY,
+    TRANSFORMED_RECORD,
+    USD_AMOUNT,
+)
+
+
 # BookingCron
 
 @pytest.fixture(scope="session")
@@ -41,7 +56,6 @@ def expected_bookings() -> list[dict]:
 @pytest.fixture(scope="session")
 def transformed_bookings() -> list[dict]:
     return TRANSFORMED_BOOKINGS
-
 
 
 # BookingExtractService
@@ -65,6 +79,7 @@ def success_response() -> list[dict]:
     return BOOKING_SUCCESS_RESPONSE
 
 
+
 # ExchangeRateService
 
 @pytest.fixture
@@ -85,3 +100,86 @@ def exchange_service(
     mock_session: Mock,
 ) -> ExchangeRateService:
     return ExchangeRateService(session=mock_session)
+
+
+# BookingTransformService
+
+@pytest.fixture
+def exchange_rate_service() -> Mock:
+    """
+    Mock ExchangeRateService used by BookingTransformService.
+    """
+    service = Mock(spec=ExchangeRateService)
+    service.convert_to_usd.return_value = USD_AMOUNT
+    return service
+
+
+@pytest.fixture
+def booking_transform_service(
+    exchange_rate_service: Mock,
+) -> BookingTransformService:
+    """
+    BookingTransformService with mocked dependencies.
+    """
+    service = BookingTransformService(
+        exchange_rate_service=exchange_rate_service,
+    )
+
+    # Override mapping files so tests are deterministic.
+    service._status_mapping = {
+        "ok": "Confirmed",
+    }
+
+    service._device_mapping = {
+        "mobile": DEVICE,
+    }
+
+    return service
+
+
+@pytest.fixture
+def bookings() -> list[dict]:
+    """
+    Raw booking payload.
+    """
+    return RAW_BOOKINGS
+
+
+@pytest.fixture
+def conversion_key() -> str:
+    return CONVERSION_KEY
+
+
+@pytest.fixture
+def prepared_record() -> dict:
+    return PREPARED_RECORD.copy()
+
+
+@pytest.fixture
+def transformed_record() -> dict:
+    return TRANSFORMED_RECORD.copy()
+
+
+@pytest.fixture
+def expected_site_key() -> str:
+    return SITE_KEY
+
+
+@pytest.fixture
+def expected_device() -> str:
+    return DEVICE
+
+
+@pytest.fixture
+def expected_referral_property_id() -> str:
+    return REFERRAL_PROPERTY_ID
+
+
+@pytest.fixture
+def expected_decimal() -> Decimal:
+    return DECIMAL_VALUE
+
+
+@pytest.fixture
+def expected_usd_amount() -> Decimal:
+    return USD_AMOUNT
