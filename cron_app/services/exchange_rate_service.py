@@ -57,6 +57,4 @@ class ExchangeRateService:
         return None
 
     def _build_request(self, currency_code: str) -> tuple[str, dict]:
-        if self.base_url.rstrip("/").endswith("/latest"):
-            return f"{self.base_url.rstrip('/')}/{currency_code}", {}
-        return self.base_url, {"base": currency_code, "symbols": "USD"}
+        return f"{self.base_url.rstrip('/')}/{currency_code}", {}
