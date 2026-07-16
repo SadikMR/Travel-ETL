@@ -1,12 +1,15 @@
 import pytest
 
 from decimal import Decimal
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
+from contextlib import contextmanager
 
 from cronjobs.booking import BookingCron
 from services.booking_extract_service import BookingExtractService
 from services.booking_transform_service import BookingTransformService
 from services.exchange_rate_service import ExchangeRateService
+
+from services.booking_load_service import BookingLoadService
 
 from tests.test_data.common_data import (
     BOOKINGS,
@@ -35,6 +38,13 @@ from tests.test_data.booking_transform_data import (
     SITE_KEY,
     TRANSFORMED_RECORD,
     USD_AMOUNT,
+)
+
+from extensions import Base, Database
+
+
+TEST_DATABASE_URI = (
+    "postgresql://postgres:postgres@localhost:5432/travel_test"
 )
 
 
@@ -183,3 +193,42 @@ def expected_decimal() -> Decimal:
 @pytest.fixture
 def expected_usd_amount() -> Decimal:
     return USD_AMOUNT
+
+
+# BookingLoadService
+
+@pytest.fixture
+def db_instance() -> Mock:
+    """Mock database instance."""
+
+    db = Mock()
+
+    @contextmanager
+    def session_scope():
+        session = MagicMock()
+        yield session
+
+    db.session_scope = session_scope
+
+    return db
+
+
+@pytest.fixture
+def booking_load_service(
+    db_instance: Mock,
+) -> BookingLoadService:
+    """BookingLoadService with mocked database."""
+
+    return BookingLoadService(db_instance=db_instance)
+
+
+@pytest.fixture
+def test_db():
+    db = Database(TEST_DATABASE_URI)
+    db.initialize()
+
+    Base.metadata.create_all(db.engine)
+
+    yield db
+
+    Base.metadata.drop_all(db.engine)
