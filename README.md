@@ -218,6 +218,12 @@ Run the test suite with:
 pytest
 ```
 
+To see test coverage:
+
+```bash
+pytest --cov=cron_app
+```
+
 ## Design Principles
 
 This project follows:
