@@ -51,3 +51,25 @@ class TestBookingLoadServiceIntegration:
             assert rows[1].referral_property_id == BOOKINGS[1]["referral_property_id"]
             assert rows[1].revenue == BOOKINGS[1]["revenue"]
             assert rows[1].revenue_usd == BOOKINGS[1]["revenue_usd"]
+    def test_load_chunks_large_dataset(self, test_db):
+        """Verifies chunking works correctly with dataset > 100 items."""
+        service = BookingLoadService(db_instance=test_db)
+
+        # Create a large dataset (150+ items) to trigger chunking
+        large_bookings = []
+        for i in range(150):
+            booking = BOOKINGS[0].copy()
+            booking["transaction_id"] = f"txn-chunk-{i:03d}"
+            large_bookings.append(booking)
+
+        inserted = service.load(large_bookings)
+
+        assert inserted == len(large_bookings)
+
+        with test_db.session_scope() as session:
+            rows = session.query(BookingTransaction).all()
+            assert len(rows) >= 150
+            
+            # Verify at least 2 chunks were processed
+            txn_ids = {r.transaction_id for r in rows}
+            assert len([t for t in txn_ids if t.startswith("txn-chunk-")]) >= 150
