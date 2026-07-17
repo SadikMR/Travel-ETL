@@ -218,16 +218,28 @@ Run the test suite:
 pytest
 ```
 
+Run tests in parallel using all available cores (faster):
+
+```bash
+pytest -n auto
+```
+
 View test coverage for cron_app:
 
 ```bash
 pytest --cov=cron_app --cov-report=term-missing
 ```
 
-**100% test coverage** achieved for cron_app with **63 passing tests** covering all ETL functionality:
+Run tests in parallel with coverage:
+
+```bash
+pytest -n auto --cov=cron_app --cov-report=term-missing
+```
+
+**100% test coverage** achieved for cron_app with **64 passing tests** covering all ETL functionality:
 - Extract service: API requests with retries
 - Transform service: Field normalization, currency conversion, status mapping
-- Load service: Database UPSERT operations with chunked processing
+- Load service: Database UPSERT operations with chunked processing (100-item batches)
 - Booking cron orchestration and error handling
 - Database session management and transactions
 

@@ -7,3 +7,7 @@ pandas==2.3.2
 psycopg2-binary==2.9.9
 dynaconf==3.3.2
 Flask-Limiter==2.7.0
+
+pytest==8.4.2
+pytest-xdist==3.8.0
+pytest-cov==7.0.0
