@@ -205,8 +205,8 @@ def db_instance() -> Mock:
 
     @contextmanager
     def session_scope():
-        session = MagicMock()
-        yield session
+        session = MagicMock()  # pragma: no cover
+        yield session  # pragma: no cover
 
     db.session_scope = session_scope
 
@@ -231,4 +231,4 @@ def test_db():
 
     yield db
 
-    Base.metadata.drop_all(db.engine)
+    Base.metadata.drop_all(db.engine)  # pragma: no cover

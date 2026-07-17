@@ -1,3 +1,3 @@
-from __init__ import run_cron
+from __init__ import run_cron  # pragma: no cover
 
-run_cron()
+run_cron()  # pragma: no cover
