@@ -15,6 +15,7 @@ services:
     container_name: travel-postgres
 
     environment:
+      DATABASE_URI: postgresql+psycopg2://postgres:postgres@postgres:5432/travel_db
       POSTGRES_DB: travel_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
