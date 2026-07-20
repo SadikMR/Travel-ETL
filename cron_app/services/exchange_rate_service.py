@@ -17,7 +17,6 @@ class ExchangeRateService:
         s = requests.Session()
         retries = Retry(total=3, backoff_factor=0.3, status_forcelist=(500, 502, 504))
         s.mount("https://", HTTPAdapter(max_retries=retries))
-        s.mount("http://", HTTPAdapter(max_retries=retries))
         return s
 
     def convert_to_usd(self, amount: float, currency_code: str) -> float:
