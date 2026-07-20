@@ -24,7 +24,7 @@ jobs:
           --health-retries=5
 
     env:
-      DATABASE_URI: ${{ secrets.DATABASE_URI }}
+      DATABASE_URI: postgresql://postgres:postgres@localhost:5432/travel_db
 
     steps:
       - name: Checkout repository
@@ -35,17 +35,32 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Create integration test database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql \
+            -h localhost \
+            -U postgres \
+            -d postgres \
+            -c "CREATE DATABASE travel_test;"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Wait for PostgreSQL
-        run: |
-          until pg_isready -h localhost -p 5432 -U ${{ secrets.DB_USER }}; do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
 
       - name: Run tests with coverage
         run: |
