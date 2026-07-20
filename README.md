@@ -245,12 +245,6 @@ pytest -n auto --cov=cron_app --cov-report=term-missing
 
 Lines marked with `# pragma: no cover` are non-critical fallback paths (config loading edge cases) already covered by integration tests.
 
-## Design Principles
-
-This project follows:
-- **OOP** for clear separation of responsibilities across services and models
-- **SOLID** for maintainable and extensible class design
-- **DRY** to reduce duplication and improve consistency
 
 ## Error Handling
 
