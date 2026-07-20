@@ -25,11 +25,13 @@ jobs:
 
     env:
       DATABASE_URI: ${{ secrets.DATABASE_URI }}
-      
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -38,8 +40,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U ${{ secrets.DB_USER }}; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
       - name: Run tests with coverage
-        run: pytest -n auto --cov=cron_app --cov-report=xml
+        run: |
+          pytest -n auto --cov=cron_app --cov-report=xml
 
       - name: Build Docker image
-        run: docker build -t travel-etl .
+        run: |
+          docker build -t travel-etl .
