@@ -115,31 +115,13 @@ EXCHANGE_RATE_API_KEY=your_key_here
 
 ## Running the API
 
-1. Activate the virtual environment:
+1. Start the Docker Compose services:
 
 ```bash
-source .venv/bin/activate
+docker compose up --build -d
 ```
 
-2. Install the Python dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Start the Flask API in one terminal:
-
-```bash
-python -m api_app.run
-```
-
-4. In a second terminal, start the required Docker services:
-
-```bash
-docker compose up -d
-```
-
-5. Access the API at:
+2. Access the API at:
 
 ```bash
 http://127.0.0.1:5000/api/bookings
@@ -160,16 +142,16 @@ GET /api/bookings
 
 ## Running the ETL Application
 
-1. Make sure the API is running and Docker services are up:
+1. Start the Docker Compose services:
 
 ```bash
-docker compose up -d
+docker compose up --build -d
 ```
 
-2. Run the booking ETL job from the project root:
+2. Run the booking ETL job in the API container:
 
 ```bash
-python main.py --cron-name booking --updated_from 2026-07-12 --updated_to 2026-07-13
+docker compose exec api python /app/main.py --cron-name booking --updated_from 2026-07-12 --updated_to 2026-07-13
 ```
 
 3. You can change the date values to any range you want.
