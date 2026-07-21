@@ -11,3 +11,4 @@ Flask-Limiter==2.7.0
 pytest==8.4.2
 pytest-xdist==3.8.0
 pytest-cov==7.0.0
+sentry-sdk==2.35.0

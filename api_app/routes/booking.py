@@ -73,8 +73,19 @@ class BookingAPI(MethodView):
             out.append(booking)
 
         return out
+    
 
+class SentryTestAPI(MethodView):
+    """Temporary endpoint to verify Sentry integration."""
+
+    def get(self):
+        raise Exception("Sentry test exception")
+    
 
 booking_view = BookingAPI.as_view("booking_api")
 booking_view = limiter.limit("10/minute")(booking_view)
 booking_bp.add_url_rule("/bookings", view_func=booking_view, methods=["GET"])
+
+sentry_test_view = SentryTestAPI.as_view("sentry_test_api")
+sentry_test_view = limiter.limit("5/minute")(sentry_test_view)
+booking_bp.add_url_rule("/sentry-test", view_func=sentry_test_view, methods=["GET"])
