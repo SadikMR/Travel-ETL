@@ -2,6 +2,7 @@ import os
 from typing import Optional
 
 import requests
+import sentry_sdk
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -20,16 +21,23 @@ class ExchangeRateService:
         return s
 
     def convert_to_usd(self, amount: float, currency_code: str) -> float:
-        currency_code = (currency_code or "USD").upper()
-        if currency_code == "USD":
-            return float(amount)
+        try:
+            currency_code = (currency_code or "USD").upper()
+            if currency_code == "USD":
+                return float(amount)
 
-        if currency_code in self._rate_cache:
-            return float(amount) * self._rate_cache[currency_code]
+            if currency_code in self._rate_cache:
+                return float(amount) * self._rate_cache[currency_code]
 
-        rate = self._fetch_rate(currency_code)
-        self._rate_cache[currency_code] = rate
-        return float(amount) * rate
+            rate = self._fetch_rate(currency_code)
+            self._rate_cache[currency_code] = rate
+            return float(amount) * rate
+            
+        except Exception as error:  # pragma: no cover
+            error_msg = f"Error converting {currency_code} to USD: {error}"  # pragma: no cover
+            sentry_sdk.capture_exception(error)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="error")  # pragma: no cover
+            raise
 
     def _fetch_rate(self, currency_code: str) -> float:
         try:
@@ -37,7 +45,11 @@ class ExchangeRateService:
             resp = self._session.get(request_url, params=params, timeout=10)
             resp.raise_for_status()
             payload = resp.json()
-        except requests.RequestException:  # pragma: no cover
+            
+        except requests.RequestException as error:  # pragma: no cover
+            error_msg = f"Failed to fetch exchange rate for {currency_code}: {error}"  # pragma: no cover
+            sentry_sdk.capture_exception(error)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="warning")  # pragma: no cover
             return 1.0  # pragma: no cover
 
         rate = self._extract_usd_rate(payload)

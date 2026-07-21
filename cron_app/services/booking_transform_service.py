@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+import sentry_sdk
 
 from services.exchange_rate_service import ExchangeRateService
 
@@ -46,9 +47,16 @@ class BookingTransformService:
         self._exchange_rate_service = exchange_rate_service or ExchangeRateService()
 
     def transform(self, bookings: list[dict]) -> list[dict]:
-        df = self._normalize(bookings)
-        df = self._prepare_dataframe(df)
-        return [self._transform_record(r) for r in df.to_dict(orient="records")]
+        try:
+            df = self._normalize(bookings)
+            df = self._prepare_dataframe(df)
+            return [self._transform_record(r) for r in df.to_dict(orient="records")]
+            
+        except Exception as error:  # pragma: no cover
+            error_msg = f"Error transforming bookings: {error}"  # pragma: no cover
+            sentry_sdk.capture_exception(error)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="error")  # pragma: no cover
+            raise
 
     def _normalize(self, bookings: list[dict]) -> pd.DataFrame:
         return pd.json_normalize(bookings)

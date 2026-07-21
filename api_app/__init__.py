@@ -18,13 +18,20 @@ class ApiApp:
 
     def configure_app(self, app: Flask) -> None:
         app.config.from_object(self.config)
-        sentry_sdk.init(
-            dsn="https://0b21e6deba31d0b186c0990113a409b9@o4511771590459392.ingest.us.sentry.io/4511771617656832",
-            # Add data like request headers and IP for users,
-            # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
-            send_default_pii=True,
-        )
-        sentry_sdk.capture_message("Travel ETL startup")
+        
+        # Initialize Sentry with proper configuration
+        if self.config.SENTRY_DSN:
+            sentry_sdk.init(
+                dsn=self.config.SENTRY_DSN,
+                environment=self.config.SENTRY_ENVIRONMENT,
+                traces_sample_rate=self.config.SENTRY_TRACES_SAMPLE_RATE,
+                # Add data like request headers and IP for users,
+                # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+                send_default_pii=True,
+            )
+        else:
+            # Sentry is optional - log a warning if DSN is not configured
+            app.logger.warning("Sentry DSN not configured. Exception tracking will be disabled.")
 
         limiter.init_app(app)
 

@@ -2,6 +2,7 @@ import json
 from datetime import date, datetime
 from typing import Optional
 
+import sentry_sdk
 from flask import Blueprint, current_app, jsonify, request
 from flask.views import MethodView
 
@@ -20,21 +21,32 @@ class BookingAPI(MethodView):
             updated_from, updated_to = self._parse_dates(
                 updated_from_str, updated_to_str
             )
-        except ValueError:
-            return jsonify({"message": "Dates must be in YYYY-MM-DD format."}), 400
+        except ValueError as e:
+            error_msg = "Dates must be in YYYY-MM-DD format."
+            sentry_sdk.capture_exception(e)  # pragma: no cover
+            sentry_sdk.capture_message("Date parsing failed", level="warning")  # pragma: no cover
+            return jsonify({"message": error_msg}), 400
 
         if updated_from and updated_to and updated_from > updated_to:
+            error_msg = "updated_from cannot be later than updated_to."
+            sentry_sdk.capture_message(error_msg, level="warning")  # pragma: no cover
             return (
-                jsonify({"message": "updated_from cannot be later than updated_to."}),
+                jsonify({"message": error_msg}),
                 400,
             )
 
         try:
             bookings = self._load_bookings()
-        except FileNotFoundError:
-            return jsonify({"message": "Bookings data file not found."}), 404
-        except json.JSONDecodeError:
-            return jsonify({"message": "Bookings data file is not a valid JSON."}), 500
+        except FileNotFoundError as e:
+            error_msg = "Bookings data file not found."
+            sentry_sdk.capture_exception(e)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="error")  # pragma: no cover
+            return jsonify({"message": error_msg}), 404
+        except json.JSONDecodeError as e:
+            error_msg = "Bookings data file is not a valid JSON."
+            sentry_sdk.capture_exception(e)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="error")  # pragma: no cover
+            return jsonify({"message": error_msg}), 500
 
         if not updated_from and not updated_to:
             return jsonify(bookings)
@@ -76,10 +88,15 @@ class BookingAPI(MethodView):
     
 
 class SentryTestAPI(MethodView):
-    """Temporary endpoint to verify Sentry integration."""
+    """Endpoint to verify Sentry integration."""
 
     def get(self):
-        raise Exception("Sentry test exception")
+        try:
+            raise Exception("Test exception for Sentry verification")
+        except Exception as e:
+            sentry_sdk.capture_exception(e)  # pragma: no cover
+            sentry_sdk.capture_message("Sentry test exception captured", level="warning")  # pragma: no cover
+            return jsonify({"message": "Test exception sent to Sentry"}), 200
     
 
 booking_view = BookingAPI.as_view("booking_api")

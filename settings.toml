@@ -3,4 +3,7 @@ DATABASE_URI = "postgresql+psycopg2://postgres:postgres@localhost:5432/travel_db
 API_BASE_URL = "http://127.0.0.1:5000"
 JSON_FILE = "api_app/data/bookings.json"
 RATELIMIT_DEFAULT = "10/minute;1000/day"
-SENTRY_DSN = "https://0b21e6deba31d0b186c0990113a409b9@o4511771590459392.ingest.us.sentry.io/4511771617656832"
+
+# Sentry Configuration (non-sensitive)
+SENTRY_ENVIRONMENT = "development"
+SENTRY_TRACES_SAMPLE_RATE = 1.0

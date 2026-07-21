@@ -10,6 +10,18 @@ from cronjobs.booking import run
 class TestCronAppInit:
     """Tests for cron_app.create_app() and cron_app.run_cron()."""
 
+    def test_initialize_sentry_initializes_sdk_when_dsn_present(self) -> None:
+        """Verify Sentry initializes when a DSN is configured."""
+        with patch.object(cron_app.Config, "SENTRY_DSN", "https://example@sentry.io/1"), patch.object(cron_app.Config, "SENTRY_ENVIRONMENT", "test"), patch.object(cron_app.Config, "SENTRY_TRACES_SAMPLE_RATE", 0.5), patch.object(cron_app.sentry_sdk, "init") as mock_init:
+            cron_app.initialize_sentry()
+
+            mock_init.assert_called_once_with(
+                dsn="https://example@sentry.io/1",
+                environment="test",
+                traces_sample_rate=0.5,
+                send_default_pii=True,
+            )
+
     def test_create_app_initializes_database(self) -> None:
         """Verify create_app initializes database and creates tables."""
         result = cron_app.create_app()

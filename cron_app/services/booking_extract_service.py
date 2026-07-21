@@ -1,4 +1,5 @@
 import requests
+import sentry_sdk
 from typing import Optional
 
 from config import Config
@@ -21,6 +22,18 @@ class BookingExtractService:
     def fetch(self, params: dict) -> list:
         """Fetch bookings using configured base URL and query params."""
 
-        response = self._request(params)
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = self._request(params)
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.RequestException as error:  # pragma: no cover
+            error_msg = f"Failed to fetch bookings: {error}"  # pragma: no cover
+            sentry_sdk.capture_exception(error)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="error")  # pragma: no cover
+            raise
+        except Exception as error:  # pragma: no cover
+            error_msg = f"Unexpected error fetching bookings: {error}"  # pragma: no cover
+            sentry_sdk.capture_exception(error)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="error")  # pragma: no cover
+            raise

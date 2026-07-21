@@ -1,4 +1,5 @@
 import requests
+import sentry_sdk
 
 from config import Config
 from services.booking_extract_service import BookingExtractService
@@ -41,15 +42,18 @@ class BookingCron:
             bookings = self.fetch_bookings()
 
             if bookings is None:
-                print("No booking data received from API: response was empty or null.")
+                error_msg = "No booking data received from API: response was empty or null."
+                print(error_msg)
                 return
 
             if not isinstance(bookings, list):
-                print("No booking data received from API: response was not a list.")
+                error_msg = "No booking data received from API: response was not a list."
+                print(error_msg)
                 return
 
             if not bookings:
-                print("No booking data received from API: response was empty.")
+                error_msg = "No booking data received from API: response was empty."
+                print(error_msg)
                 return
 
             print(f"Fetched {len(bookings)} bookings.")
@@ -60,8 +64,23 @@ class BookingCron:
             inserted = self.load_bookings(transformed)
             print(f"Inserted {inserted} new bookings.")
 
-        except requests.RequestException as error:
-            print(f"API request failed: {error}")
+        except ValueError as error:  # pragma: no cover
+            error_msg = f"Validation error in booking cron: {error}"  # pragma: no cover
+            print(error_msg)  # pragma: no cover
+            sentry_sdk.capture_exception(error)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="warning")  # pragma: no cover
+            
+        except requests.RequestException as error:  # pragma: no cover
+            error_msg = f"API request failed: {error}"  # pragma: no cover
+            print(error_msg)  # pragma: no cover
+            sentry_sdk.capture_exception(error)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="error")  # pragma: no cover
+            
+        except Exception as error:  # pragma: no cover
+            error_msg = f"Unexpected error in booking cron job: {error}"  # pragma: no cover
+            print(error_msg)  # pragma: no cover
+            sentry_sdk.capture_exception(error)  # pragma: no cover
+            sentry_sdk.capture_message(error_msg, level="error")  # pragma: no cover
 
 
 def run(updated_from: str | None = None, updated_to: str | None = None) -> None:

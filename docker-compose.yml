@@ -6,6 +6,11 @@ services:
     ports:
       - "5000:5000"
 
+    env_file:
+      - .env
+    environment:
+      DATABASE_URI: postgresql+psycopg2://postgres:postgres@postgres:5432/travel_db
+
     depends_on:
       postgres:
         condition: service_healthy
